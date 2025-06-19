@@ -45,7 +45,7 @@ modules:
       - "core"
     services:
     # replace with the master build
-      - egovio/health-hrms-db:v1.3.0-1585e2fcb8-53
+      - egovio/egov-hrms-db:v1.3.1-bd9a3b3582-52
   - name: frontend
     dependencies:
       - "business"
@@ -85,24 +85,20 @@ modules:
     services:
       - egovio/facility-db:v1.1.2-00a7accbda-14
       - egovio/product-db:v1.1.0-00a7accbda-31
-      # get the individual master build 
-      - egovio/health-individual-db:v1.1.6-1f79b92f65-55
+      - egovio/individual-db:v1.1.8-e392a94b54-65
       - egovio/transformer:HDDF-1277-149f70deb7-302
       - egovio/stock-db:v1.1.3-a0e714254c-31
-      # replace with the master build
-      - egovio/household:HCMPRE-2519-household-member-relationship-6aaf4757b0-56
-      # replace with the master build
-      - egovio/health-project-db:HCMPRE-2548-22c771a89b-97
-      # get the ReferralManaement master build 
-      - egovio/referralmanagement-db:dev-92af21178e-93
+      - egovio/household-db:v1.1.7-bd9a3b3582-73
+      - egovio/project-db:v1.1.8-a4283645b4-49
+      - egovio/referralmanagement-db:v1.0.5-6ff8133902-95
       - egovio/attendance-db:v1.1.0-55e92c713-90
-      # get the service request master build 
-      - egovio/health-service-request:HCMPRE-2659-service-request-update-922455dff2-9
+      - egovio/service-request-db:v1.1.0-bd9a3b3582-59
       - egovio/muster-roll-db:v1.1.0-8e8f04913-61
       - egovio/expense-db:v1.1.0-55e92c713-118
       - egovio/health-expense-calculator-db:v1.0.0-172f7e79e-55
       - payments-ui:console-c692a067dd-57
       - pdf-service:indexer-bpa-fix-vinoth-88d0942e6a-42
+      - egovio/beneficiary-idgen-db:v1.0.0-5933b8db0e-7
   - name: m_hcmconsole
     dependencies:
       - "backbone"
