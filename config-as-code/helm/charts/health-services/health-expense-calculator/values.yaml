@@ -196,7 +196,7 @@ env: |
     value: {{ index .Values "egov-musterroll-search-endpoint" | quote }} 
   - name: IS_HEALTH_CONTEXT_ENABLED
     value: "true"
-  - EGOV_INDIVIDUAL_SEARCH_ENDPOINT
+  - name: EGOV_INDIVIDUAL_SEARCH_ENDPOINT
     value: "/individual/v1/_search"
-  - EGOV_FILESTORE_PATH
+  - name: EGOV_FILESTORE_PATH
     value: "/filestore/v1/files"
