@@ -105,3 +105,9 @@ env: |
     value: "resource-microplan-create-topic"
   - name: INTEGRATE_WITH_ADMIN_CONSOLE
     value: "true"
+  - name: DEFAULT_LIMIT_FOR_MDMS_DATA
+    value: "20"
+  - name: ENABLE_LOCK_ON_PLAN_ESTIMATION_SHEET
+    value: "false"
+  - name: BATCH_SIZE
+    value: "100" 

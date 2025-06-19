@@ -127,3 +127,5 @@ env: |
     value: "resource-microplan-create-topic"
   - name: PLAN_DEFAULT_LIMIT
     value: "50"
+  - name: SPRING_KAFKA_PRODUCER_PROPERTIES_MAX_REQUEST_SIZE
+    value: {{ index .Values "kafka-producer-max-request-size" | default "4000000" }}
