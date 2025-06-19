@@ -1,7 +1,7 @@
 # Replace with the name which you want to give to your EKS cluster
 # Cluster name can have only lowercase alphanumeric characters and hyphens
 # For example: "digit-demo"
-cluster_name: "hcmv8-installationtesting"
+cluster_name: "hcmv8-testing"
 
 
 # Name you want to give to your Database
@@ -16,4 +16,4 @@ db_username: "testhealthv8"
 domain_name: "hcm-console.digit.org"
 
 # Replace with the name you want to give to your S3 bucket which is used to store the terraform states
-terraform_state_bucket_name: "hcmv8-installationtesting-s3-state"
+terraform_state_bucket_name: "hcmv8-testing-s3-state"
