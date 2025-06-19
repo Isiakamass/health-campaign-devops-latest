@@ -3,7 +3,7 @@ labels:
   app: "beneficiary-idgen"
   group: "health"
 
-namespace: health
+namespace: egov
 
 # Ingress Configs
 ingress:

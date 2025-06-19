@@ -41,7 +41,6 @@ cluster-configs:
                 egov-internal-microservice-user-uuid: fa0f820c-49df-46bb-8e62-8a0ec5d9af5e
                 kibana-base-path: kibana-upgrade 
                 kibana-host: "http://kibana-v1.es-upgrade:5601/"
-                beneficiary-idgen: 'http://beneficiary-idgen.health:8080/'
 
         egov-service-host:
             namespace: [ egov, es-cluster, monitoring ]
@@ -111,6 +110,7 @@ cluster-configs:
               health-expense: 'http://expense.egov:8080/'
               health-expense-calculator: 'http://health-expense-calculator.egov:8080/'
               health-muster-roll: 'http://muster-roll.egov:8080/'
+              beneficiary-idgen: 'http://beneficiary-idgen.egov:8080/'
 
 employee:
   dashboard-url: "https://dashboard-pbuat.egovernments.org/s/w---s/app/kibana#/dashboard/4e687470-f3c7-11e8-8d09-b151e2b1cf8e?embed=true&_g=(refreshInterval%3A(pause%3A!f%2Cvalue%3A300000)%2Ctime%3A(from%3Anow-15m%2Cmode%3Aquick%2Cto%3Anow))"
@@ -502,6 +502,10 @@ individual:
   replicas: 1
   heap: '-Xmx512m -Xms256m'
   memory_limits: 512Mi
+  egov-beneficiary-idgen-host-key: "beneficiary-idgen"
+  egov-idgen-generate-path: "egov-idgen/id/_generate"
+  egov-beneficiary-idgen-idpool-search-path: "beneficiary-idgen/id/id_pool/_search"
+  egov-beneficiary-idgen-idpool-update-path: "beneficiary-idgen/id/id_pool/_update"
 
 product:
   heap: "-Xmx512m -Xms256m"
