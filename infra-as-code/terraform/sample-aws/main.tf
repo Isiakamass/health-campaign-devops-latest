@@ -116,7 +116,6 @@ module "eks_managed_node_group" {
   desired_size = var.desired_worker_nodes
   user_data_template_path = "user-data.yaml"
   instance_types = var.instance_types
-  capacity_type  = "SPOT"
   ebs_optimized  = "true"
   enable_monitoring = "true"
   iam_role_additional_policies = {
