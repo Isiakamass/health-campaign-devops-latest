@@ -1,11 +1,14 @@
 # Replace with the name which you want to give to your EKS cluster
 # Cluster name can have only lowercase alphanumeric characters and hyphens
 # For example: "digit-demo"
-cluster_name: "testhealth-k8supgrade"
+cluster_name: "testhealth-k8supgrade-demo-hcm-v1.7"
 
 # Name you want to give to your Database
 # DB name must contain only alphanumeric characters
 db_name: "testhealthdb"
+
+
+public_ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC/YgncsvOvQkO12JG2uovvBU33mWKCsxiKcb+jVkHOP9IwWpJQXAqQXuw6aLTU1Y6v9rXaNaAB5TUhtugq0OI8eq+AklORZII/cB2E/lsa5l7XwYsPkdTTRyc2fVGWYxnB1YYL/Wa4yAfDgEXrvCKe81iQS8pQBj8ozoZU/Znpg/q+9a+auAv/BR3WDUf9IefP9bu84jgeBHbm+Xg9Oj4vbrBxQud1t5Sn76r1NWJWwLZeLn8FFQIVBGHs9lkPQPmISJVRiZOiqipguFYafV8Jcy8xFxdiIAA3Xj8DbFrtRvlYlTd5wpW/lnsi7d3tVCbXblwmUtI5CIB0Nmt2eKKL"
 
 # Replace with DB username you want
 # DB user name must contain only alphanumeric characters
@@ -15,4 +18,4 @@ db_username: "testhealth"
 domain_name: "hcm-console.digit.org"
 
 # Replace with the name you want to give to your S3 bucket which is used to store the terraform states
-terraform_state_bucket_name: "testhealth-k8supgrade-digit-buckets"
+terraform_state_bucket_name: "testhealth-k8supgrade-digit-buckets-demo"
