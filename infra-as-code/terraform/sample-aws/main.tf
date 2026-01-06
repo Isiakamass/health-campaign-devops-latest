@@ -1,10 +1,10 @@
 terraform { 
   backend "s3" {
-    bucket = <terraform_state_bucket_name>
-    key    = "terraform-setup/terraform.tfstate"
-    region = "ap-south-1"
-    dynamodb_table = <terraform_state_bucket_name>
-    encrypt = true
+    bucket         = "icfsl-health-demo-tfstate"
+    key            = "terraform-setup/terraform.tfstate"
+    region         = "ap-south-1"
+    dynamodb_table = "icfsl-health-demo-tfstate"
+    encrypt        = true
   }
   required_providers {
     aws = {
@@ -24,6 +24,10 @@ terraform {
       version = ">= 2.0.0"
     }
   }
+}
+
+provider "aws" {
+  region = var.region
 }
 
 module "network" {
@@ -58,11 +62,13 @@ module "eks" {
   cluster_name    = var.cluster_name
   cluster_version = var.kubernetes_version
   vpc_id          = module.network.vpc_id
+  
   enable_cluster_creator_admin_permissions = true
   cluster_endpoint_public_access  = true
   cluster_endpoint_private_access = true
   authentication_mode = "API_AND_CONFIG_MAP"
-  subnet_ids      = concat(module.network.private_subnets, module.network.public_subnets)
+  
+  subnet_ids = concat(module.network.private_subnets, module.network.public_subnets)
   
   node_security_group_additional_rules = {
     ingress_self_ephemeral = {
@@ -91,9 +97,8 @@ module "eks" {
     "karpenter.sh/discovery" = var.cluster_name
   }
 
-  # INTEGRATED NODE GROUP - This avoids the for_each error
   eks_managed_node_groups = {
-    "${var.cluster_name}" = {
+    main = {
       name            = var.cluster_name
       use_custom_launch_template = true
       
@@ -189,6 +194,7 @@ provider "kubernetes" {
 }
 
 resource "kubernetes_storage_class_v1" "ebs_csi_encrypted_gp3_storage_class" {
+  depends_on = [module.eks]
   metadata {
     name = "gp3"
     annotations = {
@@ -225,7 +231,7 @@ resource "aws_iam_role_policy" "karpenter_policy" {
   count      = var.enable_karpenter ? 1 : 0
   depends_on = [module.eks]
   name       = "karpenter-policy"
-  role       = module.eks.eks_managed_node_groups["${var.cluster_name}"].iam_role_name
+  role       = module.eks.eks_managed_node_groups["main"].iam_role_name
   policy = jsonencode({
     "Version" : "2012-10-17",
     "Statement" : [
@@ -261,7 +267,7 @@ module "karpenter" {
   cluster_name = module.eks.cluster_name
 
   create_node_iam_role = false
-  node_iam_role_arn    = module.eks.eks_managed_node_groups["${var.cluster_name}"].iam_role_arn
+  node_iam_role_arn    = module.eks.eks_managed_node_groups["main"].iam_role_arn
   create_access_entry  = false
 
   tags = {
@@ -316,7 +322,7 @@ resource "kubectl_manifest" "karpenter_node_class" {
       amiFamily: AL2023
       amiSelectorTerms:
       - id: ami-0d1008f82aca87cb9
-      role: ${module.eks.eks_managed_node_groups["${var.cluster_name}"].iam_role_name}
+      role: ${module.eks.eks_managed_node_groups["main"].iam_role_name}
       subnetSelectorTerms:
         - tags:
             karpenter.sh/discovery: ${module.eks.cluster_name}
@@ -379,4 +385,37 @@ resource "kubectl_manifest" "karpenter_node_pool" {
   YAML
 
   depends_on = [kubectl_manifest.karpenter_node_class]
+}
+
+output "cluster_endpoint" {
+  value = module.eks.cluster_endpoint
+}
+
+output "vpc_id" {
+  value = module.network.vpc_id
+}
+
+output "private_subnets" {
+  value = module.network.private_subnets
+}
+
+output "public_subnets" {
+  value = module.network.public_subnets
+}
+
+output "db_instance_endpoint" {
+  value = module.db.db_instance_endpoint
+}
+
+output "db_instance_name" {
+  value = var.db_name
+}
+
+output "db_instance_username" {
+  value     = var.db_username
+  sensitive = true
+}
+
+output "db_instance_port" {
+  value = module.db.db_instance_port
 }
