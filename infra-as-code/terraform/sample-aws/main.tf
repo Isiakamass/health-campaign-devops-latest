@@ -33,27 +33,26 @@ locals {
 
 module "network" {
   source             = "../modules/kubernetes/aws/network"
-  vpc_cidr_block     = "${var.vpc_cidr_block}"
-  cluster_name       = "${var.cluster_name}"
-  availability_zones = "${var.network_availability_zones}"
+  vpc_cidr_block     = var.vpc_cidr_block
+  cluster_name       = var.cluster_name
+  availability_zones = var.network_availability_zones
 }
 
-# PostGres DB
 module "db" {
   source                        = "../modules/db/aws"
-  subnet_ids                    = "${module.network.private_subnets}"
-  vpc_security_group_ids        = ["${module.network.rds_db_sg_id}"]
-  availability_zone             = "${element(var.availability_zones, 0)}"
+  subnet_ids                    = module.network.private_subnets
+  vpc_security_group_ids        = [module.network.rds_db_sg_id]
+  availability_zone             = element(var.availability_zones, 0)
   instance_class                = "db.t4g.medium"
   engine_version                = "15.8"
   storage_type                  = "gp3"
   storage_gb                    = "20"
   backup_retention_days         = "7"
-  administrator_login           = "${var.db_username}"
-  administrator_login_password  = "${var.db_password}"
+  administrator_login           = var.db_username
+  administrator_login_password  = var.db_password
   identifier                    = "${var.cluster_name}-db"
-  db_name                       = "${var.db_name}"
-  environment                   = "${var.cluster_name}"
+  db_name                       = var.db_name
+  environment                   = var.cluster_name
 }
 
 data "aws_caller_identity" "current" {}
@@ -81,8 +80,8 @@ module "eks" {
   }
   cluster_addons = {
     vpc-cni = {
-      most_recent              = true
-      before_compute           = true
+      most_recent    = true
+      before_compute = true
       configuration_values = jsonencode({
         env = {
           ENABLE_PREFIX_DELEGATION = "true"
@@ -103,7 +102,7 @@ module "eks_managed_node_group" {
   depends_on = [module.eks]
   source  = "terraform-aws-modules/eks/aws//modules/eks-managed-node-group"
   version = "20.8.0"
-  name            = "${var.cluster_name}"
+  name            = var.cluster_name
   cluster_name    = var.cluster_name
   cluster_version = var.kubernetes_version
   subnet_ids      = [module.network.private_subnets[local.az_index_in_network]]
@@ -129,7 +128,7 @@ module "eks_managed_node_group" {
   ebs_optimized  = "true"
   enable_monitoring = "true"
   iam_role_additional_policies = {
-    CSI_DRIVER_POLICY = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+    CSI_DRIVER_POLICY            = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
     AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
     SQS_POLICY                   = "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
   }
@@ -154,32 +153,32 @@ resource "aws_security_group_rule" "rds_db_ingress_workers" {
 
 data "aws_eks_cluster" "cluster" {
   depends_on = [module.eks_managed_node_group]
-  name = var.cluster_name
+  name       = var.cluster_name
 }
 
 data "aws_eks_cluster_auth" "cluster" {
   depends_on = [module.eks_managed_node_group]
-  name = var.cluster_name
+  name       = var.cluster_name
 }
 
 resource "aws_eks_addon" "kube_proxy" {
-  depends_on = [module.eks_managed_node_group]
-  cluster_name      = var.cluster_name
-  addon_name        = "kube-proxy"
+  depends_on                  = [module.eks_managed_node_group]
+  cluster_name                = var.cluster_name
+  addon_name                  = "kube-proxy"
   resolve_conflicts_on_create = "OVERWRITE"
 }
 
 resource "aws_eks_addon" "core_dns" {
-  depends_on = [module.eks_managed_node_group]
-  cluster_name      = var.cluster_name
-  addon_name        = "coredns"
+  depends_on                  = [module.eks_managed_node_group]
+  cluster_name                = var.cluster_name
+  addon_name                  = "coredns"
   resolve_conflicts_on_create = "OVERWRITE"
 }
 
 resource "aws_eks_addon" "aws_ebs_csi_driver" {
-  depends_on = [module.eks_managed_node_group]
-  cluster_name      = var.cluster_name
-  addon_name        = "aws-ebs-csi-driver"
+  depends_on                  = [module.eks_managed_node_group]
+  cluster_name                = var.cluster_name
+  addon_name                  = "aws-ebs-csi-driver"
   resolve_conflicts_on_create = "OVERWRITE"
 }
 
@@ -189,27 +188,26 @@ provider "kubernetes" {
   token                  = data.aws_eks_cluster_auth.cluster.token
 }
 
-resource "kubernetes_storage_class" "ebs_csi_encrypted_gp3_storage_class" {
+resource "kubernetes_storage_class_v1" "ebs_csi_encrypted_gp3_storage_class" {
   metadata {
     name = "gp3"
     annotations = {
-      "storageclass.kubernetes.io/is-default-class" : "true"
+      "storageclass.kubernetes.io/is-default-class" = "true"
     }
   }
-
   storage_provisioner    = "ebs.csi.aws.com"
   reclaim_policy         = "Delete"
   allow_volume_expansion = true
   volume_binding_mode    = "Immediate"
   parameters = {
     fsType    = "ext4"
-    encrypted = true
+    encrypted = "true"
     type      = "gp3"
   }
 }
 
 provider "helm" {
-  kubernetes {
+  kubernetes = {
     host                   = data.aws_eks_cluster.cluster.endpoint
     cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
     token                  = data.aws_eks_cluster_auth.cluster.token
@@ -224,16 +222,16 @@ provider "kubectl" {
 }
 
 resource "aws_iam_role_policy" "karpenter_policy" {
-  count = var.enable_karpenter ? 1 : 0
+  count      = var.enable_karpenter ? 1 : 0
   depends_on = [module.eks_managed_node_group]
-  name   = "karpenter-policy"
-  role   = module.eks_managed_node_group.iam_role_name
+  name       = "karpenter-policy"
+  role       = module.eks_managed_node_group.iam_role_name
   policy = jsonencode({
-    "Version": "2012-10-17",
-    "Statement": [
+    "Version" : "2012-10-17",
+    "Statement" : [
       {
-        "Effect": "Allow",
-        "Action": [
+        "Effect" : "Allow",
+        "Action" : [
           "ec2:DescribeSpotPriceHistory",
           "pricing:GetProducts",
           "ec2:DescribeInstanceTypeOfferings",
@@ -250,51 +248,50 @@ resource "aws_iam_role_policy" "karpenter_policy" {
           "ec2:DeleteLaunchTemplate",
           "ec2:TerminateInstances"
         ],
-        "Resource": "*"
+        "Resource" : "*"
       }
     ]
   })
 }
 
 module "karpenter" {
-  count   = var.enable_karpenter ? 1 : 0
-  source  = "terraform-aws-modules/eks/aws//modules/karpenter"
-  version = "20.8.0"
+  count        = var.enable_karpenter ? 1 : 0
+  source       = "terraform-aws-modules/eks/aws//modules/karpenter"
+  version      = "20.8.0"
   cluster_name = module.eks.cluster_name
 
   create_node_iam_role = false
   node_iam_role_arn    = module.eks_managed_node_group.iam_role_arn
-
-  create_access_entry = false
+  create_access_entry  = false
 
   tags = {
-    Environment = var.cluster_name
-    Terraform   = "true"
+    Environment         = var.cluster_name
+    Terraform           = "true"
     "KubernetesCluster" = var.cluster_name
   }
 }
 
 resource "helm_release" "karpenter-crd" {
-  count = var.enable_karpenter ? 1 : 0
-  namespace           = "kube-system"
-  name                = "karpenter-crd"
-  repository          = "oci://public.ecr.aws/karpenter"
-  chart               = "karpenter-crd"
-  version             = "1.0.8"
-  wait                = true
-  values = []
+  count      = var.enable_karpenter ? 1 : 0
+  namespace  = "kube-system"
+  name       = "karpenter-crd"
+  repository = "oci://public.ecr.aws/karpenter"
+  chart      = "karpenter-crd"
+  version    = "1.0.8"
+  wait       = true
+  values     = []
 }
 
 resource "helm_release" "karpenter" {
-  count = var.enable_karpenter ? 1 : 0
-  depends_on = [ helm_release.karpenter-crd ]
-  namespace           = "kube-system"
-  name                = "karpenter"
-  repository          = "oci://public.ecr.aws/karpenter"
-  chart               = "karpenter"
-  version             = "1.0.8"
-  wait                = false
-  skip_crds           = true
+  count      = var.enable_karpenter ? 1 : 0
+  depends_on = [helm_release.karpenter-crd]
+  namespace  = "kube-system"
+  name       = "karpenter"
+  repository = "oci://public.ecr.aws/karpenter"
+  chart      = "karpenter"
+  version    = "1.0.8"
+  wait       = false
+  skip_crds  = true
 
   values = [
     <<-EOT
@@ -330,9 +327,7 @@ resource "kubectl_manifest" "karpenter_node_class" {
         karpenter.sh/discovery: ${module.eks.cluster_name}
   YAML
 
-  depends_on = [
-    helm_release.karpenter
-  ]
+  depends_on = [helm_release.karpenter]
 }
 
 resource "kubectl_manifest" "karpenter_node_pool" {
@@ -383,7 +378,5 @@ resource "kubectl_manifest" "karpenter_node_pool" {
           - "Underutilized"
   YAML
 
-  depends_on = [
-    kubectl_manifest.karpenter_node_class
-  ]
+  depends_on = [kubectl_manifest.karpenter_node_class]
 }
