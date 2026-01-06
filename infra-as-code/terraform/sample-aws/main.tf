@@ -26,10 +26,6 @@ terraform {
   }
 }
 
-provider "aws" {
-  region = "ap-south-1"
-}
-
 locals {
   az_to_find           = var.availability_zones[0] 
   az_index_in_network  = index(var.network_availability_zones, local.az_to_find)
