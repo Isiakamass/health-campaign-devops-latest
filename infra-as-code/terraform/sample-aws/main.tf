@@ -9,11 +9,28 @@ terraform {
     encrypt = true
   }
   required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.46.0, < 6.0.0"
+    }
     kubectl = {
       source  = "gavinbunney/kubectl"
       version = "~> 1.14.0" 
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 2.20.0"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = ">= 2.9.0"
+    }
   }
+  required_version = ">= 1.3.0"
+}
+
+provider "aws" {
+  region = var.aws_region
 }
 
 locals {
@@ -199,7 +216,7 @@ resource "kubernetes_storage_class" "ebs_csi_encrypted_gp3_storage_class" {
 }
 
 provider "helm" {
-  kubernetes = {
+  kubernetes {
     host                   = data.aws_eks_cluster.cluster.endpoint
     cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
     token                  = data.aws_eks_cluster_auth.cluster.token
@@ -308,7 +325,7 @@ resource "kubectl_manifest" "karpenter_node_class" {
     spec:
       amiFamily: AL2023
       amiSelectorTerms:
-      - id: ami-0d1008f82aca87cb9
+      - alias: al2023@latest
       role: ${module.eks_managed_node_group.iam_role_name}
       subnetSelectorTerms:
         - tags:
@@ -318,15 +335,6 @@ resource "kubectl_manifest" "karpenter_node_class" {
             karpenter.sh/discovery: ${module.eks.cluster_name}
       tags:
         karpenter.sh/discovery: ${module.eks.cluster_name}
-    status:
-  amis:
-  - id: var.ami_id.id
-    name: var.ami_id.name
-    requirements:
-    - key: kubernetes.io/arch
-      operator: In
-      values:
-      - amd64
   YAML
 
   depends_on = [
@@ -348,7 +356,7 @@ resource "kubectl_manifest" "karpenter_node_pool" {
             maxPods: 40
           nodeClassRef:
             name: default
-            group: karpenter.k8s.aws  # Updated since only a single version will be served
+            group: karpenter.k8s.aws
             kind: EC2NodeClass
           requirements:
             - key: "karpenter.k8s.aws/instance-category"
