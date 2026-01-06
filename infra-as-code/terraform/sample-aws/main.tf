@@ -106,6 +106,7 @@ module "eks_managed_node_group" {
   cluster_name    = var.cluster_name
   cluster_version = var.kubernetes_version
   cluster_ip_family = "ipv4"
+  iam_role_attach_cni_policy = false
   subnet_ids      = [module.network.private_subnets[local.az_index_in_network]]
   vpc_security_group_ids  = [module.eks.node_security_group_id]
   use_custom_launch_template = true
