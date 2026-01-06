@@ -108,7 +108,6 @@ module "eks_managed_node_group" {
   cluster_version = var.kubernetes_version
   subnet_ids      = [module.network.private_subnets[local.az_index_in_network]]
   vpc_security_group_ids  = [module.eks.node_security_group_id]
-  cluster_service_cidr = module.eks.cluster_service_cidr
   use_custom_launch_template = true
   launch_template_name = "${var.cluster_name}-lt"
   block_device_mappings = {
@@ -329,15 +328,6 @@ resource "kubectl_manifest" "karpenter_node_class" {
             karpenter.sh/discovery: ${module.eks.cluster_name}
       tags:
         karpenter.sh/discovery: ${module.eks.cluster_name}
-    status:
-  amis:
-  - id: var.ami_id.id
-    name: var.ami_id.name
-    requirements:
-    - key: kubernetes.io/arch
-      operator: In
-      values:
-      - amd64
   YAML
 
   depends_on = [
