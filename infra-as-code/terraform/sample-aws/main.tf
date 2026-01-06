@@ -26,11 +26,6 @@ terraform {
   }
 }
 
-locals {
-  az_to_find           = var.availability_zones[0] 
-  az_index_in_network  = index(var.network_availability_zones, local.az_to_find)
-}
-
 module "network" {
   source             = "../modules/kubernetes/aws/network"
   vpc_cidr_block     = var.vpc_cidr_block
@@ -68,6 +63,7 @@ module "eks" {
   cluster_endpoint_private_access = true
   authentication_mode = "API_AND_CONFIG_MAP"
   subnet_ids      = concat(module.network.private_subnets, module.network.public_subnets)
+  
   node_security_group_additional_rules = {
     ingress_self_ephemeral = {
       description = "Node to node communication"
@@ -78,6 +74,7 @@ module "eks" {
       self        = true
     }
   }
+  
   cluster_addons = {
     vpc-cni = {
       most_recent    = true
@@ -89,54 +86,55 @@ module "eks" {
       })
     }
   }
+  
   node_security_group_tags = {
     "karpenter.sh/discovery" = var.cluster_name
   }
-  tags = {
-    "KubernetesCluster" = var.cluster_name
-    "Name"              = var.cluster_name
-  }
-}
 
-module "eks_managed_node_group" {
-  depends_on = [module.eks]
-  source  = "terraform-aws-modules/eks/aws//modules/eks-managed-node-group"
-  version = "20.8.0"
-  name            = var.cluster_name
-  cluster_name    = var.cluster_name
-  cluster_version = var.kubernetes_version
-  cluster_ip_family = "ipv4"
-  iam_role_attach_cni_policy = false
-  subnet_ids      = [module.network.private_subnets[local.az_index_in_network]]
-  vpc_security_group_ids  = [module.eks.node_security_group_id]
-  use_custom_launch_template = true
-  launch_template_name = "${var.cluster_name}-lt"
-  block_device_mappings = {
-    xvda = {
-      device_name = "/dev/xvda"
-      ebs = {
-        volume_size           = 100
-        volume_type           = "gp3"
-        delete_on_termination = true
+  # INTEGRATED NODE GROUP - This avoids the for_each error
+  eks_managed_node_groups = {
+    "${var.cluster_name}" = {
+      name            = var.cluster_name
+      use_custom_launch_template = true
+      
+      block_device_mappings = {
+        xvda = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size           = 100
+            volume_type           = "gp3"
+            delete_on_termination = true
+          }
+        }
+      }
+      
+      min_size     = var.min_worker_nodes
+      max_size     = var.max_worker_nodes
+      desired_size = var.desired_worker_nodes
+      
+      subnet_ids     = [module.network.private_subnets[0]]
+      instance_types = var.instance_types
+      capacity_type  = "SPOT"
+      ebs_optimized  = true
+      enable_monitoring = true
+      
+      iam_role_additional_policies = {
+        CSI_DRIVER_POLICY            = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+        AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+        SQS_POLICY                   = "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
+      }
+      
+      labels = {
+        Environment = var.cluster_name
+      }
+      
+      tags = {
+        "KubernetesCluster" = var.cluster_name
+        "Name"              = var.cluster_name
       }
     }
   }
-  min_size     = var.min_worker_nodes
-  max_size     = var.max_worker_nodes
-  desired_size = var.desired_worker_nodes
-  user_data_template_path = "user-data.yaml"
-  instance_types = var.instance_types
-  capacity_type  = "SPOT"
-  ebs_optimized  = "true"
-  enable_monitoring = "true"
-  iam_role_additional_policies = {
-    CSI_DRIVER_POLICY            = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
-    AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-    SQS_POLICY                   = "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
-  }
-  labels = {
-    Environment = var.cluster_name
-  }
+
   tags = {
     "KubernetesCluster" = var.cluster_name
     "Name"              = var.cluster_name
@@ -154,31 +152,31 @@ resource "aws_security_group_rule" "rds_db_ingress_workers" {
 }
 
 data "aws_eks_cluster" "cluster" {
-  depends_on = [module.eks_managed_node_group]
+  depends_on = [module.eks]
   name       = var.cluster_name
 }
 
 data "aws_eks_cluster_auth" "cluster" {
-  depends_on = [module.eks_managed_node_group]
+  depends_on = [module.eks]
   name       = var.cluster_name
 }
 
 resource "aws_eks_addon" "kube_proxy" {
-  depends_on                  = [module.eks_managed_node_group]
+  depends_on                  = [module.eks]
   cluster_name                = var.cluster_name
   addon_name                  = "kube-proxy"
   resolve_conflicts_on_create = "OVERWRITE"
 }
 
 resource "aws_eks_addon" "core_dns" {
-  depends_on                  = [module.eks_managed_node_group]
+  depends_on                  = [module.eks]
   cluster_name                = var.cluster_name
   addon_name                  = "coredns"
   resolve_conflicts_on_create = "OVERWRITE"
 }
 
 resource "aws_eks_addon" "aws_ebs_csi_driver" {
-  depends_on                  = [module.eks_managed_node_group]
+  depends_on                  = [module.eks]
   cluster_name                = var.cluster_name
   addon_name                  = "aws-ebs-csi-driver"
   resolve_conflicts_on_create = "OVERWRITE"
@@ -209,7 +207,7 @@ resource "kubernetes_storage_class_v1" "ebs_csi_encrypted_gp3_storage_class" {
 }
 
 provider "helm" {
-  kubernetes = {
+  kubernetes {
     host                   = data.aws_eks_cluster.cluster.endpoint
     cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
     token                  = data.aws_eks_cluster_auth.cluster.token
@@ -225,9 +223,9 @@ provider "kubectl" {
 
 resource "aws_iam_role_policy" "karpenter_policy" {
   count      = var.enable_karpenter ? 1 : 0
-  depends_on = [module.eks_managed_node_group]
+  depends_on = [module.eks]
   name       = "karpenter-policy"
-  role       = module.eks_managed_node_group.iam_role_name
+  role       = module.eks.eks_managed_node_groups["${var.cluster_name}"].iam_role_name
   policy = jsonencode({
     "Version" : "2012-10-17",
     "Statement" : [
@@ -263,7 +261,7 @@ module "karpenter" {
   cluster_name = module.eks.cluster_name
 
   create_node_iam_role = false
-  node_iam_role_arn    = module.eks_managed_node_group.iam_role_arn
+  node_iam_role_arn    = module.eks.eks_managed_node_groups["${var.cluster_name}"].iam_role_arn
   create_access_entry  = false
 
   tags = {
@@ -318,7 +316,7 @@ resource "kubectl_manifest" "karpenter_node_class" {
       amiFamily: AL2023
       amiSelectorTerms:
       - id: ami-0d1008f82aca87cb9
-      role: ${module.eks_managed_node_group.iam_role_name}
+      role: ${module.eks.eks_managed_node_groups["${var.cluster_name}"].iam_role_name}
       subnetSelectorTerms:
         - tags:
             karpenter.sh/discovery: ${module.eks.cluster_name}
