@@ -59,7 +59,7 @@ module "db" {
   vpc_security_group_ids       = [module.network.rds_db_sg_id]
   availability_zone            = element(var.availability_zones, 0)
   instance_class               = "db.t4g.medium"
-  engine_version               = "15.8"
+  engine_version               = "15.10"
   storage_type                 = "gp3"
   storage_gb                   = "20"
   backup_retention_days        = "7"
