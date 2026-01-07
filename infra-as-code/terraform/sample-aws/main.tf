@@ -1,30 +1,19 @@
 terraform { 
   backend "s3" {
-    bucket = "icfsl-health-demo-tfstate"
+    bucket = <terraform_state_bucket_name>
     key    = "terraform-setup/terraform.tfstate"
     region = "ap-south-1"
-    dynamodb_table = "icfsl-health-demo-tfstate"
+    # The below line is optional depending on whether you are using DynamoDB for state locking and consistency
+    dynamodb_table = <terraform_state_bucket_name>
+    # The below line is optional if your S3 bucket is encrypted
     encrypt = true
   }
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 5.46.0, < 6.0.0"
-    }
     kubectl = {
       source  = "gavinbunney/kubectl"
       version = "~> 1.14.0" 
     }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = ">= 2.20.0"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = ">= 2.9.0"
-    }
   }
-  required_version = ">= 1.3.0"
 }
 
 locals {
@@ -34,27 +23,27 @@ locals {
 
 module "network" {
   source             = "../modules/kubernetes/aws/network"
-  vpc_cidr_block     = var.vpc_cidr_block
-  cluster_name       = var.cluster_name
-  availability_zones = var.network_availability_zones
+  vpc_cidr_block     = "${var.vpc_cidr_block}"
+  cluster_name       = "${var.cluster_name}"
+  availability_zones = "${var.network_availability_zones}"
 }
 
 # PostGres DB
 module "db" {
   source                        = "../modules/db/aws"
-  subnet_ids                    = module.network.private_subnets
-  vpc_security_group_ids        = [module.network.rds_db_sg_id]
-  availability_zone             = element(var.availability_zones, 0)
-  instance_class                = "db.t4g.medium"
-  engine_version                = "15.8"
+  subnet_ids                    = "${module.network.private_subnets}"
+  vpc_security_group_ids        = ["${module.network.rds_db_sg_id}"]
+  availability_zone             = "${element(var.availability_zones, 0)}"
+  instance_class                = "db.t4g.medium"  ## postgres db instance type
+  engine_version                = "15.8"   ## postgres version
   storage_type                  = "gp3"
-  storage_gb                    = "20"
+  storage_gb                    = "20"     ## postgres disk size
   backup_retention_days         = "7"
-  administrator_login           = var.db_username
-  administrator_login_password  = var.db_password
+  administrator_login           = "${var.db_username}"
+  administrator_login_password  = "${var.db_password}"
   identifier                    = "${var.cluster_name}-db"
-  db_name                       = var.db_name
-  environment                   = var.cluster_name
+  db_name                       = "${var.db_name}"
+  environment                   = "${var.cluster_name}"
 }
 
 data "aws_caller_identity" "current" {}
@@ -86,7 +75,8 @@ module "eks" {
       before_compute           = true
       configuration_values = jsonencode({
         env = {
-          ENABLE_PREFIX_DELEGATION = "true"
+          # Reference docs https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html
+          ENABLE_PREFIX_DELEGATION           = "true"
         }
       })
     }
@@ -102,9 +92,8 @@ module "eks" {
 
 module "eks_managed_node_group" {
   depends_on = [module.eks]
-  source  = "terraform-aws-modules/eks/aws//modules/eks-managed-node-group"
-  version = "~> 20.0"
-  name            = var.cluster_name
+  source = "terraform-aws-modules/eks/aws//modules/eks-managed-node-group"
+  name            = "${var.cluster_name}"
   cluster_name    = var.cluster_name
   cluster_version = var.kubernetes_version
   subnet_ids      = [module.network.private_subnets[local.az_index_in_network]]
@@ -122,6 +111,7 @@ module "eks_managed_node_group" {
       }
     }
   }
+  
   min_size     = var.min_worker_nodes
   max_size     = var.max_worker_nodes
   desired_size = var.desired_worker_nodes
@@ -154,6 +144,7 @@ resource "aws_security_group_rule" "rds_db_ingress_workers" {
   type                     = "ingress"
 }
 
+# Fetching EKS Cluster Data after its creation
 data "aws_eks_cluster" "cluster" {
   depends_on = [module.eks_managed_node_group]
   name = var.cluster_name
@@ -170,14 +161,12 @@ resource "aws_eks_addon" "kube_proxy" {
   addon_name        = "kube-proxy"
   resolve_conflicts_on_create = "OVERWRITE"
 }
-
 resource "aws_eks_addon" "core_dns" {
   depends_on = [module.eks_managed_node_group]
   cluster_name      = var.cluster_name
   addon_name        = "coredns"
   resolve_conflicts_on_create = "OVERWRITE"
 }
-
 resource "aws_eks_addon" "aws_ebs_csi_driver" {
   depends_on = [module.eks_managed_node_group]
   cluster_name      = var.cluster_name
@@ -191,13 +180,14 @@ provider "kubernetes" {
   token                  = data.aws_eks_cluster_auth.cluster.token
 }
 
-resource "kubernetes_storage_class" "ebs_csi_encrypted_gp3_storage_class" {
+resource "kubernetes_storage_class_v1" "ebs_csi_encrypted_gp3_storage_class" {
   metadata {
     name = "gp3"
     annotations = {
       "storageclass.kubernetes.io/is-default-class" : "true"
     }
   }
+
   storage_provisioner    = "ebs.csi.aws.com"
   reclaim_policy         = "Delete"
   allow_volume_expansion = true
@@ -210,11 +200,9 @@ resource "kubernetes_storage_class" "ebs_csi_encrypted_gp3_storage_class" {
 }
 
 provider "helm" {
-  kubernetes {
-    host                   = data.aws_eks_cluster.cluster.endpoint
-    cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
-    token                  = data.aws_eks_cluster_auth.cluster.token
-  }
+  host                   = data.aws_eks_cluster.cluster.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.cluster.token
 }
 
 provider "kubectl" {
@@ -258,13 +246,16 @@ resource "aws_iam_role_policy" "karpenter_policy" {
 }
 
 module "karpenter" {
-  count   = var.enable_karpenter ? 1 : 0
-  source  = "terraform-aws-modules/eks/aws//modules/karpenter"
-  version = "~> 20.0"
+  count = var.enable_karpenter ? 1 : 0
+  source = "terraform-aws-modules/eks/aws//modules/karpenter"
   cluster_name = module.eks.cluster_name
+
   create_node_iam_role = false
   node_iam_role_arn    = module.eks_managed_node_group.iam_role_arn
+
+  # Since the node group role will already have an access entry
   create_access_entry = false
+
   tags = {
     Environment = var.cluster_name
     Terraform   = "true"
@@ -293,6 +284,7 @@ resource "helm_release" "karpenter" {
   version             = "1.0.8"
   wait                = false
   skip_crds           = true
+
   values = [
     <<-EOT
     serviceAccount:
@@ -315,7 +307,7 @@ resource "kubectl_manifest" "karpenter_node_class" {
     spec:
       amiFamily: AL2023
       amiSelectorTerms:
-      - alias: al2023@latest
+      - id: ami-0d1008f82aca87cb9
       role: ${module.eks_managed_node_group.iam_role_name}
       subnetSelectorTerms:
         - tags:
@@ -325,7 +317,17 @@ resource "kubectl_manifest" "karpenter_node_class" {
             karpenter.sh/discovery: ${module.eks.cluster_name}
       tags:
         karpenter.sh/discovery: ${module.eks.cluster_name}
+    status:
+  amis:
+  - id: var.ami_id.id
+    name: var.ami_id.name
+    requirements:
+    - key: kubernetes.io/arch
+      operator: In
+      values:
+      - amd64
   YAML
+
   depends_on = [
     helm_release.karpenter
   ]
@@ -345,7 +347,7 @@ resource "kubectl_manifest" "karpenter_node_pool" {
             maxPods: 40
           nodeClassRef:
             name: default
-            group: karpenter.k8s.aws
+            group: karpenter.k8s.aws  # Updated since only a single version will be served
             kind: EC2NodeClass
           requirements:
             - key: "karpenter.k8s.aws/instance-category"
@@ -378,6 +380,7 @@ resource "kubectl_manifest" "karpenter_node_pool" {
           reasons: 
           - "Underutilized"
   YAML
+
   depends_on = [
     kubectl_manifest.karpenter_node_class
   ]
