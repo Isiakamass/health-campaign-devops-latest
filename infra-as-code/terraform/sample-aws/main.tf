@@ -90,6 +90,11 @@ module "eks" {
   create_cloudwatch_log_group = false
   cluster_enabled_log_types   = []
 
+  # Disable KMS encryption (IAM permissions workaround)
+  create_kms_key                   = false
+  cluster_encryption_config        = {}
+  attach_cluster_encryption_policy = false
+
   subnet_ids = concat(
     module.network.private_subnets,
     module.network.public_subnets
