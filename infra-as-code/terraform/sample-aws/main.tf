@@ -74,17 +74,17 @@ module "db" {
 # EKS Cluster
 ###############################################################################
 module "eks" {
-  source          = "terraform-aws-modules/eks/aws"
-  version         = "~> 20.0"
+  source  = "terraform-aws-modules/eks/aws"
+  version = "~> 20.0"
 
   cluster_name    = var.cluster_name
   cluster_version = var.kubernetes_version
   vpc_id          = module.network.vpc_id
 
   enable_cluster_creator_admin_permissions = true
-  cluster_endpoint_public_access  = true
-  cluster_endpoint_private_access = true
-  authentication_mode = "API_AND_CONFIG_MAP"
+  cluster_endpoint_public_access           = true
+  cluster_endpoint_private_access          = true
+  authentication_mode                      = "API_AND_CONFIG_MAP"
 
   subnet_ids = concat(
     module.network.private_subnets,
@@ -99,8 +99,8 @@ module "eks" {
   }
 
   tags = {
-    Name               = var.cluster_name
-    KubernetesCluster  = var.cluster_name
+    Name              = var.cluster_name
+    KubernetesCluster = var.cluster_name
   }
 }
 
@@ -127,6 +127,9 @@ module "eks_managed_node_group" {
 
   instance_types = var.instance_types
   capacity_type  = "SPOT"
+
+  # Required in module version 20.x for user data generation
+  cluster_service_cidr = module.eks.cluster_service_cidr
 }
 
 ###############################################################################
