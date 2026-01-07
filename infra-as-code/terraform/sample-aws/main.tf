@@ -29,10 +29,6 @@ terraform {
   required_version = ">= 1.3.0"
 }
 
-provider "aws" {
-  region = var.aws_region
-}
-
 locals {
   az_to_find           = var.availability_zones[0] 
   az_index_in_network  = index(var.network_availability_zones, local.az_to_find)
