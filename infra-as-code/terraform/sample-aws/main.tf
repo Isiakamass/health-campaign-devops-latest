@@ -1,9 +1,9 @@
 terraform { 
   backend "s3" {
-    bucket = "icfsl-health-demo-tfstatem"
+    bucket = "icfsl-health-demo-tfstate"
     key    = "terraform-setup/terraform.tfstate"
     region = "ap-south-1"
-    dynamodb_table = "icfsl-health-demo-tfstatem"
+    dynamodb_table = "icfsl-health-demo-tfstate"
     encrypt = true
   }
   required_providers {
