@@ -86,6 +86,10 @@ module "eks" {
   cluster_endpoint_private_access          = true
   authentication_mode                      = "API_AND_CONFIG_MAP"
 
+  # Disable CloudWatch logging (IAM permissions workaround)
+  create_cloudwatch_log_group = false
+  cluster_enabled_log_types   = []
+
   subnet_ids = concat(
     module.network.private_subnets,
     module.network.public_subnets
