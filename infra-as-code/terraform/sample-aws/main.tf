@@ -34,27 +34,27 @@ locals {
 
 module "network" {
   source             = "../modules/kubernetes/aws/network"
-  vpc_cidr_block     = "${var.vpc_cidr_block}"
-  cluster_name       = "${var.cluster_name}"
-  availability_zones = "${var.network_availability_zones}"
+  vpc_cidr_block     = var.vpc_cidr_block
+  cluster_name       = var.cluster_name
+  availability_zones = var.network_availability_zones
 }
 
 # PostGres DB
 module "db" {
   source                        = "../modules/db/aws"
-  subnet_ids                    = "${module.network.private_subnets}"
-  vpc_security_group_ids        = ["${module.network.rds_db_sg_id}"]
-  availability_zone             = "${element(var.availability_zones, 0)}"
+  subnet_ids                    = module.network.private_subnets
+  vpc_security_group_ids        = [module.network.rds_db_sg_id]
+  availability_zone             = element(var.availability_zones, 0)
   instance_class                = "db.t4g.medium"
   engine_version                = "15.8"
   storage_type                  = "gp3"
   storage_gb                    = "20"
   backup_retention_days         = "7"
-  administrator_login           = "${var.db_username}"
-  administrator_login_password  = "${var.db_password}"
+  administrator_login           = var.db_username
+  administrator_login_password  = var.db_password
   identifier                    = "${var.cluster_name}-db"
-  db_name                       = "${var.db_name}"
-  environment                   = "${var.cluster_name}"
+  db_name                       = var.db_name
+  environment                   = var.cluster_name
 }
 
 data "aws_caller_identity" "current" {}
@@ -102,8 +102,9 @@ module "eks" {
 
 module "eks_managed_node_group" {
   depends_on = [module.eks]
-  source = "terraform-aws-modules/eks/aws//modules/eks-managed-node-group"
-  name            = "${var.cluster_name}"
+  source  = "terraform-aws-modules/eks/aws//modules/eks-managed-node-group"
+  version = "~> 20.0"
+  name            = var.cluster_name
   cluster_name    = var.cluster_name
   cluster_version = var.kubernetes_version
   subnet_ids      = [module.network.private_subnets[local.az_index_in_network]]
@@ -257,8 +258,9 @@ resource "aws_iam_role_policy" "karpenter_policy" {
 }
 
 module "karpenter" {
-  count = var.enable_karpenter ? 1 : 0
-  source = "terraform-aws-modules/eks/aws//modules/karpenter"
+  count   = var.enable_karpenter ? 1 : 0
+  source  = "terraform-aws-modules/eks/aws//modules/karpenter"
+  version = "~> 20.0"
   cluster_name = module.eks.cluster_name
   create_node_iam_role = false
   node_iam_role_arn    = module.eks_managed_node_group.iam_role_arn
