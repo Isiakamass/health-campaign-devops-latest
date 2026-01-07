@@ -1,13 +1,13 @@
 # Replace with the name which you want to give to your EKS cluster
 # Cluster name can have only lowercase alphanumeric characters and hyphens
 # For example: "digit-demo"
-cluster_name: "icfsl-health-demo"
+cluster_name: "icfsl-health-demo1"
 
 # Name you want to give to your Database
 # DB name must contain only alphanumeric characters
-db_name: "testhealthdb"
+db_name: "testhealthdb1"
 
-public_ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIInZMgODDNptPf8H2n4rJYdg1d+SF06erlIf+rDWHATD"
+public_ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF33y7dwUWPl2ik9M0D8TydqbOidV6KhXI8K54xmwU6G"
 
 # Replace with DB username you want
 # DB user name must contain only alphanumeric characters
@@ -17,4 +17,4 @@ db_username: "testhealth"
 domain_name: "hcm-console.digit.org"
 
 # Replace with the name you want to give to your S3 bucket which is used to store the terraform states
-terraform_state_bucket_name: "icfsl-health-demo-tfstate"
+terraform_state_bucket_name: "icfsl-health-demo-tfstate1"
