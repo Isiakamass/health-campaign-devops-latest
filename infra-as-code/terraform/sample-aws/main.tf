@@ -159,3 +159,24 @@ provider "helm" {
     token = data.aws_eks_cluster_auth.cluster.token
   }
 }
+
+###############################################################################
+# ⚠ WARNING: DO NOT CREATE BACKEND RESOURCES IN THIS STACK
+# The following resources must never exist in the main Terraform stack.
+# They are commented out to prevent DynamoDB / S3 creation errors.
+###############################################################################
+
+# resource "aws_s3_bucket" "terraform_state" {
+#   bucket = "icfsl-health-demo-tfstate"
+# }
+
+# resource "aws_dynamodb_table" "terraform_state_lock" {
+#   name         = "icfsl-health-demo-tfstate"
+#   billing_mode = "PAY_PER_REQUEST"
+#   hash_key     = "LockID"
+#
+#   attribute {
+#     name = "LockID"
+#     type = "S"
+#   }
+# }
